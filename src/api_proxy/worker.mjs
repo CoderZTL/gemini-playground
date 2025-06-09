@@ -200,12 +200,12 @@ async function handleTTSGeneration(reqBody, apiKey) {
   const url = `${BASE_URL}/${API_VERSION}/models/${model}:generateContent`;
 
   const ttsPayload = {
-    contents: [{
-      parts: [{ text: reqBody.input_text }]
+    "contents": [{
+      "parts": [{ "text": reqBody.input_text }]
     }],
-    responseModalities: ['Audio'],
-    speechConfig: {
-      voice: reqBody.tts_settings.voice,
+    "responseModalities": ['Audio'],
+    "speechConfig": {
+      "voice": reqBody.tts_settings.voice,
       // Other speechConfig parameters like 'sampleRateHertz' can be added here if needed
     },
     // safetySettings can be added here if different from default chat ones
