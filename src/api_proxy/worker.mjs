@@ -189,6 +189,62 @@ async function handleCompletions (req, apiKey) {
   return new Response(body, fixCors(response));
 }
 
+
+async function handleTTSGeneration(reqBody, apiKey) {
+  const model = reqBody.model || "gemini-1.5-flash-preview-tts"; // Default or specified TTS model
+  const url = `${BASE_URL}/${API_VERSION}/models/${model}:generateContent`;
+
+  const ttsPayload = {
+    "contents": [{
+      "parts": [{ "text": reqBody.input_text }]
+    }],
+      "generationConfig": {
+        "responseModalities": ["Audio"], // Correctly nested
+        "speechConfig": { // Correctly nested
+          "voice": reqBody.tts_settings.voice
+          // Other speechConfig parameters like 'audioEncoding' or 'sampleRateHertz' 
+          // can be added here if needed, according to the API specification.
+        }
+      }
+      // safetySettings can be added here if different from default chat ones.
+      // For the Gemini generateContent API, safetySettings are typically top-level,
+      // alongside 'contents' and 'generationConfig', if you need to customize them.
+    };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: makeHeaders(apiKey, { "Content-Type": "application/json" }),
+    body: JSON.stringify(ttsPayload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Gemini TTS API Error:", errorText);
+    throw new HttpError(`Gemini TTS API Error: ${response.status} ${response.statusText} - ${errorText}`, response.status);
+  }
+
+  const responseData = await response.json();
+
+  if (!responseData.candidates || !responseData.candidates[0] || !responseData.candidates[0].content || !responseData.candidates[0].content.parts || !responseData.candidates[0].content.parts[0] || !responseData.candidates[0].content.parts[0].inlineData) {
+    console.error("Invalid TTS response structure:", responseData);
+    throw new HttpError("Invalid TTS response structure from Gemini API", 500);
+  }
+
+  const audioData = responseData.candidates[0].content.parts[0].inlineData.data;
+  const mimeType = responseData.candidates[0].content.parts[0].inlineData.mimeType || "audio/L16;codec=pcm;rate=24000"; // Default if not provided
+
+  const audioBytes = Buffer.from(audioData, 'base64');
+
+  const headers = new Headers(fixCors({}).headers); // Get base CORS headers
+  headers.set("Content-Type", mimeType);
+  headers.set("Content-Length", audioBytes.length.toString());
+
+  return new Response(audioBytes, {
+    status: 200,
+    headers: headers,
+  });
+}
+
 const harmCategory = [
   "HARM_CATEGORY_HATE_SPEECH",
   "HARM_CATEGORY_SEXUALLY_EXPLICIT",
