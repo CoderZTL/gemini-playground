@@ -191,6 +191,8 @@ async function handleCompletions (req, apiKey) {
 
 
 async function handleTTSGeneration(reqBody, apiKey) {
+  // THIS IS THE NEW LINE TO ADD FOR DEBUGGING
+  console.log("TTS function with NEW payload structure was triggered!"); 
   // Use the model from the request, or default to the official TTS model name
   const model = reqBody.model || "gemini-2.5-flash-preview-tts"; 
   const url = `${BASE_URL}/${API_VERSION}/models/${model}:generateContent`;
