@@ -9,10 +9,40 @@ export default {
     if (request.method === "OPTIONS") {
       return handleOPTIONS();
     }
-    const errHandler = (err) => {
-      console.error(err);
-      return new Response(err.message, fixCors({ status: err.status ?? 500 }));
-    };
+const errHandler = (err) => {
+  console.error("Error caught by errHandler:", err); // General log for Deno Deploy
+
+  let responseMessage = "An unknown error occurred during API proxying.";
+  let responseStatus = 500;
+  let errorDetails = err.stack || "No stack available.";
+
+  if (err instanceof HttpError) {
+    // HttpError's message should contain the text from Gemini's error response
+    responseMessage = err.message;
+    responseStatus = err.status;
+  } else if (err instanceof Error) {
+    responseMessage = err.message;
+  } else if (typeof err === 'string') {
+    responseMessage = err;
+  }
+
+  // Log what will be sent back for debugging on Deno Deploy
+  console.error(`Responding to client with status: ${responseStatus}, message: ${responseMessage}`);
+
+  // Construct a JSON response containing the error details
+  const errorResponsePayload = {
+    error: {
+      message: responseMessage,
+      status: responseStatus,
+      details_from_worker: errorDetails // Add stack or original error string
+    }
+  };
+  
+  return new Response(JSON.stringify(errorResponsePayload), fixCors({
+    status: responseStatus,
+    headers: { ...new Headers(fixCors({}).headers), 'Content-Type': 'application/json' } // Ensure JSON content type
+  }));
+};
     try {
       const auth = request.headers.get("Authorization");
       const apiKey = auth?.split(" ")[1];
@@ -143,6 +173,12 @@ async function handleEmbeddings (req, apiKey) {
 
 const DEFAULT_MODEL = "gemini-1.5-pro-latest";
 async function handleCompletions (req, apiKey) {
+// Check for TTS-specific fields
+  if (req.input_text && req.tts_settings) {
+    return handleTTSGeneration(req, apiKey);
+  }
+
+  // Existing chat completion logic
   let model = DEFAULT_MODEL;
   switch(true) {
     case typeof req.model !== "string":
