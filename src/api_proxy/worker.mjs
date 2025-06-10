@@ -191,26 +191,29 @@ async function handleCompletions (req, apiKey) {
 
 
 async function handleTTSGeneration(reqBody, apiKey) {
-  const model = reqBody.model || "gemini-1.5-flash-preview-tts"; // Default or specified TTS model
+  // Use the model from the request, or default to the official TTS model name
+  const model = reqBody.model || "gemini-2.5-flash-preview-tts"; 
   const url = `${BASE_URL}/${API_VERSION}/models/${model}:generateContent`;
 
+  // ** FIX: This payload now matches the official Gemini API documentation **
   const ttsPayload = {
     "contents": [{
       "parts": [{ "text": reqBody.input_text }]
     }],
-      "generationConfig": {
-        "responseModalities": ["Audio"], // Correctly nested
-        "speechConfig": { // Correctly nested
-          "voice": reqBody.tts_settings.voice
-          // Other speechConfig parameters like 'audioEncoding' or 'sampleRateHertz' 
-          // can be added here if needed, according to the API specification.
+    "generationConfig": {
+      "responseModalities": ["AUDIO"], 
+      "speechConfig": {
+        "voiceConfig": { // Added this nesting
+          "prebuiltVoiceConfig": { // Added this nesting
+            "voiceName": reqBody.tts_settings.voice // Changed "voice" to "voiceName"
+          }
         }
       }
-		//
-      // safetySettings can be added here if different from default chat ones.
-      // For the Gemini generateContent API, safetySettings are typically top-level,
-      // alongside 'contents' and 'generationConfig', if you need to customize them.
-    };
+    }
+  };
+  
+  // For debugging, you can log this to see the structure
+  // console.log("Gemini TTS Request Payload:", JSON.stringify(ttsPayload, null, 2)); 
 
   const response = await fetch(url, {
     method: "POST",
@@ -218,6 +221,7 @@ async function handleTTSGeneration(reqBody, apiKey) {
     body: JSON.stringify(ttsPayload),
   });
 
+  // The rest of your function from here down is correct and can remain the same
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Gemini TTS API Error:", errorText);
