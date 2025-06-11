@@ -227,6 +227,8 @@ async function handleCompletions (req, apiKey) {
 
 
 async function handleTTSGeneration(reqBody, apiKey) {
+  // THIS IS THE NEW LINE TO ADD FOR THE TEST
+  console.log("--- RUNNING SCRIPT VERSION FROM 16:57 --- THIS IS THE NEW CODE ---");
   // The model from the request is correct: e.g., "gemini-2.5-flash-preview-tts"
   const model = reqBody.model; 
   const url = `${BASE_URL}/${API_VERSION}/models/${model}:generateContent`;
