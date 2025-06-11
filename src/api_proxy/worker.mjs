@@ -227,39 +227,34 @@ async function handleCompletions (req, apiKey) {
 
 
 async function handleTTSGeneration(reqBody, apiKey) {
-  // THIS IS THE NEW LINE TO ADD FOR DEBUGGING
-  console.log("TTS function with NEW payload structure was triggered!"); 
-  // Use the model from the request, or default to the official TTS model name
-  const model = reqBody.model || "gemini-2.5-flash-preview-tts"; 
+  // The model from the request is correct: e.g., "gemini-2.5-flash-preview-tts"
+  const model = reqBody.model; 
   const url = `${BASE_URL}/${API_VERSION}/models/${model}:generateContent`;
 
-  // ** FIX: This payload now matches the official Gemini API documentation **
+  // This payload is the corrected structure, matching the Colab notebook's requirements.
   const ttsPayload = {
     "contents": [{
       "parts": [{ "text": reqBody.input_text }]
     }],
+    // The configuration must be inside a "generationConfig" object.
     "generationConfig": {
       "responseModalities": ["AUDIO"], 
       "speechConfig": {
-        "voiceConfig": { // Added this nesting
-          "prebuiltVoiceConfig": { // Added this nesting
-            "voiceName": reqBody.tts_settings.voice // Changed "voice" to "voiceName"
+        "voiceConfig": {
+          "prebuiltVoiceConfig": {
+            "voiceName": reqBody.tts_settings.voice
           }
         }
       }
     }
   };
   
-  // For debugging, you can log this to see the structure
-  // console.log("Gemini TTS Request Payload:", JSON.stringify(ttsPayload, null, 2)); 
-
   const response = await fetch(url, {
     method: "POST",
     headers: makeHeaders(apiKey, { "Content-Type": "application/json" }),
     body: JSON.stringify(ttsPayload),
   });
 
-  // The rest of your function from here down is correct and can remain the same
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Gemini TTS API Error:", errorText);
@@ -268,17 +263,17 @@ async function handleTTSGeneration(reqBody, apiKey) {
 
   const responseData = await response.json();
 
-  if (!responseData.candidates || !responseData.candidates[0] || !responseData.candidates[0].content || !responseData.candidates[0].content.parts || !responseData.candidates[0].content.parts[0] || !responseData.candidates[0].content.parts[0].inlineData) {
-    console.error("Invalid TTS response structure:", responseData);
+  if (!responseData.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+    console.error("Invalid TTS response structure from Gemini API:", JSON.stringify(responseData, null, 2));
     throw new HttpError("Invalid TTS response structure from Gemini API", 500);
   }
 
   const audioData = responseData.candidates[0].content.parts[0].inlineData.data;
-  const mimeType = responseData.candidates[0].content.parts[0].inlineData.mimeType || "audio/L16;codec=pcm;rate=24000"; // Default if not provided
+  const mimeType = responseData.candidates[0].content.parts[0].inlineData.mimeType || "audio/L16;codec=pcm;rate=24000";
 
   const audioBytes = Buffer.from(audioData, 'base64');
 
-  const headers = new Headers(fixCors({}).headers); // Get base CORS headers
+  const headers = new Headers(fixCors({}).headers);
   headers.set("Content-Type", mimeType);
   headers.set("Content-Length", audioBytes.length.toString());
 
